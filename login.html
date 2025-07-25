@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>n8n Login</title>
+  <style>
+    body { font-family: sans-serif; background: #f5f5f5; padding: 30px; max-width: 400px; margin: auto; }
+    h2 { text-align: center; }
+    select, input, button { width: 100%; padding: 10px; margin: 10px 0; font-size: 1rem; }
+    button { background-color: #0076d6; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #005fa3; }
+    #result { white-space: pre-wrap; background: #fff; padding: 10px; margin-top: 15px; border-radius: 5px; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+
+  <h2>🔐 Logowanie do n8n</h2>
+
+  <select id="method">
+    <option value="apikey">🔑 API Key</option>
+    <option value="creds">👤 E-mail i Hasło</option>
+  </select>
+
+  <input type="text" id="url" placeholder="URL serwera n8n (np. https://n8n.pl)">
+
+  <div id="apikey-login">
+    <input type="text" id="apikey" placeholder="API Key">
+  </div>
+
+  <div id="creds-login" style="display:none;">
+    <input type="email" id="email" placeholder="E-mail">
+    <input type="password" id="password" placeholder="Hasło">
+  </div>
+
+  <button onclick="login()">Zaloguj</button>
+
+  <div id="result"></div>
+
+  <script>
+    const methodSelect = document.getElementById("method");
+    methodSelect.onchange = () => {
+      const method = methodSelect.value;
+      document.getElementById("apikey-login").style.display = method === "apikey" ? "block" : "none";
+      document.getElementById("creds-login").style.display = method === "creds" ? "block" : "none";
+    };
+
+    async function login() {
+      const url = document.getElementById("url").value.trim();
+      const method = methodSelect.value;
+      const resultBox = document.getElementById("result");
+
+      if (!url) return resultBox.textContent = "❗ Podaj adres URL serwera.";
+
+      if (method === "apikey") {
+        const apikey = document.getElementById("apikey").value.trim();
+        if (!apikey) return resultBox.textContent = "❗ Podaj klucz API.";
+
+        try {
+          const res = await fetch(`${url}/rest/me`, {
+            headers: { Authorization: `Bearer ${apikey}` }
+          });
+          const data = await res.json();
+          if (res.ok) {
+            resultBox.textContent = `✅ Zalogowano jako: ${data.email}`;
+          } else {
+            resultBox.textContent = `❌ Błąd: ${data.message || "Nie udało się."}`;
+          }
+        } catch (err) {
+          resultBox.textContent = "❌ Błąd połączenia z serwerem.";
+        }
+      }
+
+      if (method === "creds") {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+        if (!email || !password) return resultBox.textContent = "❗ Podaj e-mail i hasło.";
+
+        try {
+          const res = await fetch(`${url}/v1/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+          });
+          const data = await res.json();
+          if (res.ok && data.token) {
+            resultBox.textContent = `✅ Token JWT:\n${data.token}`;
+          } else {
+            resultBox.textContent = `❌ Błąd: ${data.message || "Niepoprawne dane logowania."}`;
+          }
+        } catch (err) {
+          resultBox.textContent = "❌ Nie udało się połączyć z serwerem.";
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>
